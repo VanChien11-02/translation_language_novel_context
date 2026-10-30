@@ -1,90 +1,186 @@
-# ContextTranslate – Few-shot + Retrieval (Blue Archive)
+# ContextTranslate + SQL Server (MVP)
 
-Bản thực hành Python cho Windows. **Đọc chương nào, dịch chương đó**. Không có giao diện popup; phiên bản này tập trung vào thuật toán context/RAG và an toàn chi phí.
+Bộ demo **Python + SQL Server + Gemini API** để lưu hồ sơ truyện, nhân vật, quy tắc xưng hô, ví dụ dịch Anh–Việt và bản dịch từng đoạn. Thiết kế ưu tiên **dịch chương nào, lưu chương đó**, không cần gửi tất cả chương trước lên API.
 
-## 1) Cài đặt
+> Đã kiểm tra cú pháp Python và unit test thuần Python. Chưa kết nối trực tiếp SQL Server hoặc Gemini API của bạn; cần cài SQL Server, ODBC Driver 18 và API key trên máy Windows.
+
+## 0. Yêu cầu
+
+- SQL Server Database Engine đang chạy và SQL Server Management Studio (SSMS).
+- Python >= 3.10 (Windows).
+- [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server).
+- Chỉ khi muốn dịch thật: Gemini API key từ [Google AI Studio](https://aistudio.google.com/api-keys).
+
+## 1. Tạo database
+
+1. Mở **SSMS**, đăng nhập SQL Server theo cách vẫn dùng.
+2. Mở `sql/01_schema.sql`, nhấn **Execute** (F5).
+3. Kiểm tra trong SSMS: Databases -> ContextTranslateDB -> Tables. Có 6 bảng: Books, Characters, PronounRules, TranslationExamples, Chapters, TranslationChunks.
+
+File chứa lệnh `GO`, **chạy bằng SSMS hoặc sqlcmd**, không gửi nguyên file qua `cursor.execute()` của pyodbc.
+
+## 2. Cài thư viện
+
+Trong thư mục project, PowerShell:
 
 ```powershell
-cd contexttranslate_fewshot_rag
 py -m venv .venv
-.venv\Scripts\activate
-python -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Mở `.env`, điền `GEMINI_API_KEY`. Tạo key: https://aistudio.google.com/api-keys. Đừng commit `.env` lên GitHub.
+Nếu đã kích hoạt venv, có thể dùng lệnh `python` thay đường dẫn `.venv\Scripts\python.exe`.
 
-## 2) Tìm hiểu ví dụ từ 2 tài liệu đã tải lên
+## 3. Cấu hình `.env`
 
-File `data/examples.jsonl` đã gồm 10 cặp câu Anh-Việt được **ghép thủ công theo đúng vị trí** giữa `bản gốc.docx` và `đoạn dịch ngắn.docx`. Các ví dụ giữ bản dịch gốc, **chưa kiểm duyệt lỗi biên tập**. Những phần không có bản tiếng Anh gốc không được tự tạo cặp.
+Mở file `.env` và sửa:
 
-Nếu bạn có 2 file gốc tại cùng một chỗ, có thể tạo lại bằng:
-
-```powershell
-python build_pairs.py --original "bản gốc.docx" --translated "đoạn dịch ngắn.docx"
+```dotenv
+SQL_SERVER=.\SQLEXPRESS
+SQL_DATABASE=ContextTranslateDB
+SQL_DRIVER=ODBC Driver 18 for SQL Server
+SQL_TRUST_SERVER_CERTIFICATE=yes
+SQL_USER=
+SQL_PASSWORD=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-Bạn nên tự sửa các ví dụ trong `data/examples.jsonl` trước khi dùng cho truyện dài. Mỗi dòng là một JSON độc lập, có `en`, `vi`, `speaker`, `listener`, `scene` và `reviewed`.
+- `SQL_SERVER`: thay bằng **Server name y hệt như trong SSMS**. Nếu SQL Server mặc định, thường là `localhost`, `.` hoặc tên máy; nếu SQL Express, thường là `.\SQLEXPRESS`.
+- `SQL_USER`, `SQL_PASSWORD`: bỏ trống nếu SSMS đang dùng **Windows Authentication** (không cần lưu mật khẩu).
+- Nếu SSMS dùng **SQL Server Authentication**, điền cả hai biến cho tài khoản SQL đã có quyền trên `ContextTranslateDB`. Đừng commit `.env`.
+- `SQL_TRUST_SERVER_CERTIFICATE=yes` chỉ để thử với **SQL Server local** dùng chứng chỉ tự ký. Sản phẩm deploy ra ngoài cần chứng chỉ tin cậy và `no`.
+- Chưa cần điền `GEMINI_API_KEY` để test phần database.
 
-## 3) Few-shot + Context Retrieval
-
-- `data/book_profile.json`: tên truyện, glossary và quy tắc xưng hô theo từng cảnh.
-- `data/examples.jsonl`: kho ví dụ song ngữ.
-- `retrieve_examples()`: chấm điểm theo người nói, người nghe, trạng thái cảnh và các từ tiếng Anh trùng nhau. Lấy 3 ví dụ gần nhất. Đây là một dạng *retrieval-augmented generation* cơ bản, **chưa có embedding hoặc vector DB**.
-- `prompt_for()`: trộn profile + 3 ví dụ + đoạn trước + đoạn cần dịch rồi gửi model.
-
-Test *không tốn API*:
+**Kiểm tra kết nối:**
 
 ```powershell
-python translate.py --text "Why did you want me dead?" --speaker Yuuka --listener Sensei --scene hostile --dry-run
-python -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe check_db.py
 ```
 
-Dịch thật (một đoạn):
+Nếu kết nối thành công, sẽ thấy thống kê số bản ghi của các bảng.
+
+## 4. Thêm dữ liệu Blue Archive mẫu
 
 ```powershell
-python translate.py --text "Why did you want me dead?" --speaker Yuuka --listener Sensei --scene hostile --chapter demo
+.\.venv\Scripts\python.exe seed_demo.py
 ```
 
-**Lưu ý:** khi dịch đoạn hội thoại có NHIỀU nhân vật, KHÔNG đặt một `--speaker`/`--listener` áp dụng cả đoạn. Hãy để trống và đưa đủ lời dẫn để AI tự nhận diện hoặc chia đoạn theo từng người nói.
+Script này thêm 1 truyện, 6 nhân vật, các quy tắc xưng hô (gồm Yuuka `normal` và `hostile`) và 3 cặp ví dụ dịch đã ghép thử từ hai file Word. Chạy lại không tạo bản ghi trùng. Đây là **demo**, nên tự đọc và sửa bản dịch trước khi dùng làm chuẩn dài hạn.
 
-## 4) Dịch cả một chương khi đang đọc
+Trong SSMS:
 
-Tạo file UTF-8 `chapter_01.txt`, chỉ chứa **chương đang đọc**. Không đưa toàn bộ sách chưa đọc vào prompt.
+```sql
+USE ContextTranslateDB;
+SELECT * FROM dbo.Books;
+SELECT * FROM dbo.Characters;
+SELECT * FROM dbo.PronounRules;
+SELECT * FROM dbo.TranslationExamples;
+```
+
+## 5. Few-shot/Retrieval từ SQL Server
+
+Demo tìm các ví dụ `IsApproved=1` theo `BookId`, người nói, người nghe, trạng thái cảnh. Với đoạn hội thoại Yuuka -> Sensei và `scene=hostile`, nó ưu tiên đúng cặp tương ứng. Đây là **retrieval theo metadata**, chưa dùng embedding/vectordb.
+
+Xem prompt mà **không gọi API**:
 
 ```powershell
-python translate.py --input chapter_01.txt --chapter 1 --dry-run
-python translate.py --input chapter_01.txt --chapter 1
+.\.venv\Scripts\python.exe translate.py --text "Why are you alive?" --chapter 0 --speaker Yuuka --listener Sensei --scene hostile --dry-run
 ```
 
-Hoặc dùng file Word của **một chương**:
+Khi dịch nhiều nhân vật lẫn trong cả chương, **bỏ `--speaker` và `--listener`** và dùng `--scene mixed`. Không đánh dấu cả chương là hội thoại của Yuuka.
+
+## 6. Gọi Gemini và lưu vào SQL Server
+
+Điền `GEMINI_API_KEY` vào `.env`, rồi dịch thử:
 
 ```powershell
-python translate.py --input chapter_01.docx --chapter 1
+.\.venv\Scripts\python.exe translate.py --text "Why are you alive?" --chapter 0 --speaker Yuuka --listener Sensei --scene hostile
 ```
 
-Bản dịch được ghi vào `output/chapter_1.txt` ngay sau mỗi đoạn. Checkpoint `output/chapter_1.progress.json` giúp tiếp tục khi ngắt hoặc gặp quota. Nếu nội dung file đổi, phải đổi `--chapter` hoặc xử lý checkpoint cũ để tránh trộn bản dịch.
+Câu gốc/bản dịch được lưu vào `dbo.TranslationChunks`, cùng hash nội dung, hash context, model, input/output token nếu API trả về. Lặp lại đúng lệnh thì đọc cache từ SQL Server, không gọi Gemini lần nữa.
 
-**Rất quan trọng:** file `bản gốc.docx` đã tải lên chứa cả cuối chương 1 và chương 2; đừng chỉ định nó là `chapter_01.docx` rồi mặc nhiên coi đó là một chương. Hãy tách chương trước.
+Dịch file truyện dài:
 
-## 5) Theo dõi và giới hạn chi phí
+```powershell
+.\.venv\Scripts\python.exe translate.py --input input\chapter_3.txt --chapter 3 --scene mixed --dry-run
+.\.venv\Scripts\python.exe translate.py --input input\chapter_3.txt --chapter 3 --scene mixed
+```
 
-Biến `.env`:
+Dùng file `.txt` UTF-8 của **đúng chương đang đọc**. Công cụ sẽ chia thành khúc khoảng 2.400 ký tự, lưu từng phần. Bản `.txt` đọc được cũng xuất ra `output/blue-archive_chapter_1.txt`. Khi chạy lại và ngữ cảnh/nguồn/model không đổi, từng khúc được đọc cache.
 
-- `GEMINI_MODEL`: model API đang dùng.
-- `PRICE_INPUT_PER_M`, `PRICE_OUTPUT_PER_M`: giá 1 triệu token, thay đổi theo bảng giá mới nhất.
-- `MAX_RUN_USD`: **chỉ là mức chặn ước lượng cục bộ trong lần chạy**, không phải hạn mức chi tiêu chính thức của Google; không bảo đảm tuyệt đối chi phí.
+> Chia tự động theo đoạn văn là chiến lược MVP. Với truyện nhiều hội thoại, nên kiểm tra chỗ chia có cắt ngang cảnh hoặc lời thoại không; bản cao cấp có thể dùng scene parser. Khi file chương thay đổi lớn hoặc thay đổi thứ tự đoạn, cần rà soát cache theo `ChunkIndex`.
 
-Sau mỗi request, console hiển thị token thật do API báo và chi phí ước tính. Lưu ý token tính phí đầu ra có thể bao gồm thinking tokens; SDK có thể báo usage khác nhau tùy API/model. Cache trong `data/cache.json` tránh trả tiền hai lần cho cùng ngữ cảnh, model và đoạn nguồn. Thay đổi ngữ cảnh -> key khác.
+**Ghi nhớ nội dung chương đã đọc:** viết tóm tắt ngắn vào `summary_1.txt`, rồi chạy:
 
-API có giới hạn RPM, TPM, RPD theo project. Lỗi 429 sẽ thử lại tối đa 4 lần; nếu quota theo ngày đã hết, tool dừng và bạn chạy lại sau. Không có bảo đảm có thể sử dụng API miễn phí vô hạn.
+```powershell
+.\.venv\Scripts\python.exe set_chapter_summary.py --chapter 1 --input summary_1.txt
+```
 
-## 6) Nâng cấp sau khi chạy ổn
+Khi dịch chương 2, hệ thống chỉ đọc tóm tắt những chương trước đó (tối đa hai chương có tóm tắt), tránh spoil chương tương lai.
 
-1. Kiểm tra và sửa 20–50 cặp mẫu chất lượng cao.
-2. Lưu thêm `scene_summary` + `character_state` khi đọc xong từng cảnh, **không đọc trước chương tương lai**.
-3. Dùng SQLite thay JSON để lưu lịch sử, kiểm soát revision.
-4. Khi tập ví dụ tăng lên hàng nghìn, nâng retrieval từ chấm điểm metadata/keyword sang multilingual embeddings + vector search (FAISS / SQLite extension).
-5. Viết extension chỉ dùng để lấy DOM xung quanh đoạn bôi đen; Python backend xử lý profile, prompt, API, cache.
+## 7. Import nhiều ví dụ
 
-Đây là bản demo học tập, chưa có tự động phân tích thay đổi quan hệ ở từng cảnh và không bảo đảm phát hiện mọi câu thoại sai xưng hô. Hãy kiểm tra kết quả trước khi lưu làm ví dụ chuẩn.
+File `data/examples.jsonl` minh họa các dòng JSON có `en`, `vi`, `speaker`, `listener`, `scene`. Chỉ import vào **dạng chưa duyệt**:
+
+```powershell
+.\.venv\Scripts\python.exe import_examples.py data\examples.jsonl
+```
+
+Sau khi đã xem và sửa kỹ tất cả dòng trong file, có thể dùng:
+
+```powershell
+.\.venv\Scripts\python.exe import_examples.py data\examples.jsonl --approve
+```
+
+Các bản `IsApproved=0` không tham gia Few-shot. Không cần train model để AI áp dụng những ví dụ này: retrieval đưa tối đa 3 ví dụ được duyệt vào prompt.
+
+## 8. Các truy vấn hữu ích trong SSMS
+
+```sql
+USE ContextTranslateDB;
+
+-- Xem cách xưng hô theo trạng thái:
+SELECT s.Name AS Speaker, l.Name AS Listener, r.SceneState,
+       r.SelfPronoun, r.AddressPronoun
+FROM dbo.PronounRules r
+JOIN dbo.Characters s ON s.CharacterId = r.SpeakerId
+JOIN dbo.Characters l ON l.CharacterId = r.ListenerId
+WHERE r.BookId = 1;
+
+-- Kiểm tra bản dịch đã được lưu, theo chương:
+SELECT c.ChapterNumber, t.ChunkIndex, t.SourceEN, t.TargetVI,
+       t.ModelName, t.InputTokens, t.OutputTokens
+FROM dbo.TranslationChunks t
+JOIN dbo.Chapters c ON c.ChapterId = t.ChapterId
+ORDER BY c.ChapterNumber, t.ChunkIndex;
+```
+
+## 9. Lỗi thường gặp
+
+- `IM002 / Data source name not found`: chưa cài ODBC Driver 18 đúng kiến trúc, hoặc `SQL_DRIVER` không trùng tên trong `pyodbc.drivers()`.
+- `08001 / timeout`: sai `SQL_SERVER`, SQL Server Database Engine chưa chạy, hoặc named instance/TCP/IP chưa được cấu hình.
+- `18456 / Login failed`: sai kiểu xác thực hoặc tài khoản chưa có quyền.
+- `Cannot open database ... requested by login`: chạy `01_schema.sql` hoặc cấp quyền truy cập database.
+- `certificate chain was issued by an authority that is not trusted`: ODBC Driver 18 mã hóa kết nối mặc định; với local dev có thể dùng `TrustServerCertificate=yes`, production thì phải dùng certificate hợp lệ.
+- `429 / rate limit` của Gemini: các chunk đã lưu không mất; có thể chạy lại sau khi giới hạn được phục hồi.
+
+## 10. Cách tổ chức database khi đọc dài hạn
+
+- Không bắt buộc đưa toàn bộ 100 chương cũ vào API. Chỉ gửi vài ví dụ đã duyệt + quy tắc nhân vật + ngữ cảnh gần nhất.
+- Khi xưng hô thay đổi, thêm/sửa `PronounRules` theo `SceneState` và kiểm tra lại cách dịch ở phần cần thiết.
+- Hãy tạo tóm tắt thủ công sau mỗi chương đã đọc để giảm token và hạn chế spoil.
+- `TranslationChunks` là bản dịch theo `ChapterId + ChunkIndex`; cách này phù hợp MVP một người dùng. Khi có nhiều bản dịch/version hoặc chỉnh lại chương, hãy bổ sung `TranslationVersions` và quản lý revision.
+
+## 11. Test nguồn Python (không cần database)
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+---
+
+Tài liệu tham khảo:
+- [ODBC connection string examples — Microsoft Learn](https://learn.microsoft.com/sql/odbc/reference/odbc-programmer-s-reference)
+- [ODBC Driver 18 encryption changes — Microsoft Learn](https://learn.microsoft.com/sql/connect/odbc/major-version-differences)
+- [Gemini model list](https://ai.google.dev/gemini-api/docs/models)
