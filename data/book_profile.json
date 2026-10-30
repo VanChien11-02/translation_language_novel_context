@@ -1,0 +1,20 @@
+{
+  "book_title": "Blue Archive: Nơi Mọi Thù Hận Bắt Đầu",
+  "style": "Truyện fanfiction/light novel; tiếng Việt tự nhiên, truyền cảm, không thêm tình tiết, không làm mềm lời thoại thù địch",
+  "glossary": {
+    "Schale": "Schale",
+    "Kivotos": "Kivotos",
+    "Sensei": "Sensei",
+    "Shittim Chest": "Shittim Chest",
+    "General Student Council": "Hội đồng Học sinh"
+  },
+  "pronouns": [
+    {"speaker": "Sensei", "listener": "Yuuka", "scene": "normal", "i": "thầy", "you": "em"},
+    {"speaker": "Yuuka", "listener": "Sensei", "scene": "normal", "i": "em", "you": "thầy"},
+    {"speaker": "Yuuka", "listener": "Sensei", "scene": "hostile", "i": "ta", "you": "ngươi"},
+    {"speaker": "Arona", "listener": "Sensei", "scene": "normal", "i": "em", "you": "thầy"},
+    {"speaker": "Plana", "listener": "Sensei", "scene": "normal", "i": "em", "you": "thầy"},
+    {"speaker": "Sensei", "listener": "Arona and Plana", "scene": "normal", "i": "thầy", "you": "các em"}
+  ],
+  "notes": "Quy tắc xưng hô phụ thuộc cảnh. Nếu speaker/listener chưa được xác nhận thì không tự áp đặt; khi đoạn có nhiều người nói, suy luận dựa trên lời dẫn và các câu trước. Không sử dụng thông tin từ chương chưa đọc."
+}

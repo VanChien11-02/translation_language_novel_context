@@ -1,0 +1,8 @@
+.env
+__pycache__/
+.venv/
+output/
+data/history.jsonl
+data/cache.json
+*.pyc
+docs/ContextTranslate.docx
