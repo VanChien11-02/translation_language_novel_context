@@ -1,5 +1,14 @@
 -- ContextTranslate - chạy toàn bộ trong SSMS (New Query -> Execute)
 -- Yêu cầu: tài khoản có quyền tạo database và table.
+
+"""Books: Lưu thông tin truyện (tiêu đề, thể loại, hướng dẫn văn phong chung StyleGuide).
+Characters: Danh sách các nhân vật trong truyện.
+PronounRules: Bảng quy tắc xưng hô giữa 2 nhân vật theo từng ngữ cảnh (normal, hostile, reconciliation,...).
+TranslationExamples: Các cặp câu dịch mẫu Anh - Việt, có cờ IsApproved (chỉ những câu đã duyệt mới được đưa vào Prompt).
+Chapters: Quản lý các chương và phần tóm tắt nội dung (SummaryVI). 
+TranslationChunks: Lưu từng đoạn dịch, mã băm nguồn/ngữ cảnh, model AI và số token tiêu thụ.
+"""
+
 IF DB_ID(N'ContextTranslateDB') IS NULL
 BEGIN
     CREATE DATABASE ContextTranslateDB;
