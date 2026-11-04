@@ -1,0 +1,13 @@
+{
+  "instruction": "Dịch truyện tiếng Anh sang tiếng Việt",
+  "context": {
+    "speaker": "Yuuka",
+    "listener": "Sensei",
+    "scene": "hostile",
+    "pronouns": {
+      "you": "ngươi"
+    }
+  },
+  "input": "Why are you alive?",
+  "output": "Tại sao ngươi còn sống?"
+}
