@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 import pyodbc
 
-from utils import stable_hash
+from src.database.utils import stable_hash
 
 load_dotenv()
 
@@ -18,22 +18,23 @@ def get_connection():
             'Hãy cài Microsoft ODBC Driver 18 for SQL Server.'
         )
     server = os.getenv('SQL_SERVER', 'localhost')
-    database = os.getenv('SQL_DATABASE', 'ContextTranslateDB')
+    database = os.getenv('SQL_DATABASE', 'NovelTranslateDB')
     trust = os.getenv('SQL_TRUST_SERVER_CERTIFICATE', 'no').lower()
     conn_str = (
         f'DRIVER={{{driver}}};SERVER={server};DATABASE={database};'
         f'Encrypt=yes;TrustServerCertificate={trust};'
-    )
+    ) # connection string cho SQL Server
     user, password = os.getenv('SQL_USER'), os.getenv('SQL_PASSWORD')
-    if user:
+
+    if len(user) > 0:
         conn_str += f'UID={user};PWD={password or ""};'
     else:
         conn_str += 'Trusted_Connection=yes;'
-    return pyodbc.connect(conn_str, timeout=10)
+    return pyodbc.connect(conn_str, timeout=10) # 10s timeout cho kết nối
 
 
 class Store:
-    def __enter__(self):
+    def __enter__(self): # dùng store với with: gọi connect, lưu connect và trả về object store
         self.conn = get_connection()
         return self
 
@@ -55,7 +56,8 @@ class Store:
             raise ValueError(f'Không tìm thấy truyện {key!r}. Chạy python seed_demo.py trước.')
         return {'id': row[0], 'title': row[1], 'style': row[2]}
 
-    def ensure_book(self, key, title, genre, style):
+    # xử lý truyện 
+    def ensure_book(self, key, title, genre, style): 
         cur = self.conn.cursor()
         row = cur.execute('SELECT BookId FROM dbo.Books WHERE BookKey = ?', key).fetchone()
         if row:
@@ -143,7 +145,7 @@ class Store:
             SELECT TOP (100) ExampleId, SpeakerId, ListenerId, SceneState, SourceEN, TargetVI
             FROM dbo.TranslationExamples
             WHERE BookId=? AND IsApproved=1 ORDER BY ExampleId DESC
-        ''', book_id).fetchall()
+        ''', book_id).fetchall() # lấy các câu mẫu đã được duyệt
         scored = []
         for x in rows:
             exid, es, el, estate, en, vi = x
@@ -153,8 +155,9 @@ class Store:
                     continue
                 if scene != 'mixed' and estate not in (scene, 'general'):
                     continue
-                score = (4 if es == sid else 0) + (3 if el == lid else 0)
-                score += (2 if estate == scene else 0)
+                score = (4 if es == sid else 0) # cùng người nói
+                score += (3 if el == lid else 0) # cùng người nghe
+                score += (2 if estate == scene else 0) # cùng scene(bối cảnh)
             else:
                 # Dịch cả chương có nhiều người nói: chỉ dùng ví dụ văn phong chung.
                 if es is not None or el is not None or estate != 'general':

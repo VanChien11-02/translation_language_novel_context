@@ -1,4 +1,4 @@
-from dao import Store
+from src.database.dao import Store
 
 with Store() as store:
     row = store.stats()
