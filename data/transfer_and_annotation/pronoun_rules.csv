@@ -1,0 +1,17 @@
+speaker,listener,mode,state,self,address,refer,start_chapter,start_para,end_chapter,end_para,confirmed,note
+Sensei,Arona,speech,*,thầy,em,,,,,,Y,
+Sensei,"Arona, Plana",speech,*,thầy,hai em,,,,,,Y,
+Sensei,Plana,speech,*,thầy,em,,,,,,Y,
+Sensei,Yuuka,speech,*,thầy,em,,,,,,Y,
+Sensei,Saori,speech,*,thầy,em,,,,,,Y,
+Sensei,Black Suit,speech,*,tôi,ngươi,,,,,,Y,Đã chốt: tôi – ngươi
+Sensei,,speech,*,mình,,,,,,,Y,Độc thoại hoặc không rõ người nghe
+Sensei,,thought,*,mình,,,,,,,Y,
+Arona,Sensei,speech,*,em,Sensei / thầy,,,,,,Y,Gọi 'Sensei'; xen 'thầy' khi lo lắng
+"Arona, Plana",Sensei,speech,*,chúng em,Sensei,,,,,,Y,
+Plana,Sensei,speech,*,,thầy / Sensei,,,,,,Y,Hay kèm 'Sensei ạ'; chưa có bằng chứng về cách tự xưng
+Yuuka,Sensei,speech,*,em,thầy,,,,,,,Suy từ cảnh Sensei bắt chước; chưa có thoại thật nên CHƯA duyệt
+Yuuka,Sensei,speech,hostile,,ngươi,,,,,,Y,
+Saori,Sensei,speech,hostile,ta,ngươi,,,,,,Y,Nói về nhóm mình: chúng tôi
+Saori,Sensei,speech,panic,em,Sensei,,,,,,Y,Sau khi nhận ra mình đã bắn Sensei
+Black Suit,Sensei,speech,*,tôi,anh,,,,,,Y,Hay mở đầu bằng gọi 'Sensei'

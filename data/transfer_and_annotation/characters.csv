@@ -1,0 +1,11 @@
+name,kind,gender,display_vi,third_person,speech_style,description
+Narrator,narrator,,,,,Người dẫn truyện (ngôi thứ ba)
+Sensei,person,male,Sensei,anh / anh ta,,
+Arona,person,female,Arona,,,
+Plana,person,female,Plana,,,
+Yuuka,person,female,Yuuka,,,
+Saori,person,female,Saori,,,Jomae Saori
+Black Suit,person,,Black Suit,,,
+Taxi Driver,person,,,,,
+"Arona, Plana",group,female,,,,Arona và Plana cùng nói / cùng được nhắc tới
+Group,group,,,,,Đám đông học sinh
